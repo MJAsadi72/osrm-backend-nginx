@@ -1,0 +1,51 @@
+#We creating a container for each api endpoint and connect nginx to endpoints to creating a single api call for our endpoints
+#ARGS:
+# TYPE=(car,foot,bicycle)
+# MAP(default)="iran-latest"
+
+version: '2'
+services:
+  #create container for driving api
+  car:
+    image: osrm-backend/car:latest
+    build:
+      dockerfile: ./osrm-backend/Dockerfile
+      args:
+        TYPE: car
+        MAP: iran-latest
+    container_name: osrm-backend_car
+    restart: always
+
+  #create container for walking api
+  foot:
+    image: osrm-backend/foot:latest
+    build:
+      dockerfile: ./osrm-backend/Dockerfile
+      args:
+        TYPE: foot
+        MAP: iran-latest
+    container_name: osrm-backend_foot
+    restart: always
+  #create container for cycling api
+  bicycle:
+    image: osrm-backend/bicycle:latest
+    build:
+      dockerfile: ./osrm-backend/Dockerfile
+      args:
+        TYPE: bicycle
+        MAP: iran-latest
+    container_name: osrm-backend_bicycle
+    restart: always
+  #create container for nginx endpoint
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    restart: always
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - 80:80
+    links:
+      - car
+      - foot
+      - bicycle
