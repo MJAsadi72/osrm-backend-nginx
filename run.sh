@@ -10,12 +10,12 @@ function execute {
     #RETURN CODES: command
 
     #execute command and pipe it to tee to store at output.txt
-    if [ "$1" == "echo" ]; then
-        $@ 2>&1| tee -a output.txt
-    else
-        echo "Executing: $@" >> output.txt
-        $@ 2>&1| tee -a output.txt
-    fi
+
+    echo "Executing: $@" >> output.txt
+    $@ 2>&1| tee -a output.txt
+    echo -e "\nRETURN_CODE=${PIPESTATUS[0]}" | tee -a output.txt
+    echo -e "-----------------------\n" | tee -a output.txt
+
 }
 
 function destroy_containers {
@@ -25,17 +25,14 @@ function destroy_containers {
     #OUTPUT: command outputs
     #RETURN CODES: command, failed"1"
 
-    #stop containers and delete them 
-    execute echo "destroying containers"
+    #stop containers and delete them  
     get_status >/dev/null 
     local RETURN_CODE=$?
     if [ $RETURN_CODE -ne 2 ] ;then
-        execute docker compose down
-        execute echo "-----------------------"
+        docker compose down
         return $?
     else
-        execute echo "no containers found!"
-        execute echo "-----------------------"
+        echo "no containers found!"
         return 1
     fi
     
@@ -49,8 +46,6 @@ function setup {
     #OUTPUT: commands outputs
     #RETURN CODES: successful"0", failed"1"
 
-    execute echo "setup started"
-
     local MAP="${1}"
     #check MAP if is empty set it to DEFAULT_COUNTRY
     if [ -z "${MAP}" ]; then
@@ -58,25 +53,24 @@ function setup {
     fi
     local ERRORS=()
 
-
     #check if docker, docker-build, docker-compose are installed
     if ! docker --version > /dev/null ;then 
-        execute echo "docker not installed" 
+        echo "docker not installed" 
         ERRORS+=("docker")
     fi
 
     if ! docker buildx > /dev/null ;then
-        execute echo "docker builder not installed" 
+        echo "docker builder not installed" 
         ERRORS+=("docker-build")
     fi
 
     if ! docker compose > /dev/null ;then
-        execute echo "docker compose not installed" 
+        echo "docker compose not installed" 
         ERRORS+=("docker-compose")
     fi
     #if one of validation is not met, return error
     if [ -n "${ERRORS}" ] ;then
-        execute echo "setup aborted. missing component: ${#ERRORS[@]}. missing packages: ${ERRORS[*]}"
+        echo "setup aborted. missing component: ${#ERRORS[@]}. missing packages: ${ERRORS[*]}"
         return 1
     fi
   
@@ -86,15 +80,13 @@ function setup {
 
     #check if MAP file exists
     if  find assets/*.osm.pbf | grep -x assets/"$MAP".osm.pbf ; then
-        execute docker compose build --build-arg MAP="${MAP}" && execute docker compose up -d 
+        docker compose build --build-arg MAP="${MAP}" && docker compose up -d 
     else
-        execute echo "MAP file not found. Abort setup." 
+        echo "MAP file not found. Abort setup." 
     fi
     #restore shell to default behaviare 
     set +e
     trap - INT TERM EXIT
-    execute echo "setup ended succesfully"
-    execute echo "-----------------------"
     return 0
 }
 
@@ -107,7 +99,6 @@ function download_assets {
     #RETURN CODES: successful"0", failed"1"
 
     #Exit immediately if one of commands failed for triggering trap
-    execute echo "download started"
     set -e
     local URL="${1}"
     if [ -z "$URL" ] ; then
@@ -121,12 +112,10 @@ function download_assets {
         return 1
     fi
     trap "rm -f ./assets/${FILE_NAME} ;return 1" INT TERM EXIT
-    execute curl "${URL}" -o ./assets/"${FILE_NAME}"
+    curl "${URL}" -o ./assets/"${FILE_NAME}"
     #restore shell to default behaviare 
     trap - INT TERM EXIT
     set +e
-    execute echo "downoad ended succesfully"
-    execute echo "-----------------------"
     return 0
 }
 
@@ -186,12 +175,18 @@ function get_data {
     local POINTA=$1
     local POINTB=$2
     local MODE=$3
-    if ! get_status > /dev/null ;then
+    local RESAULT
+    if ! get_status >/dev/null  ;then
+        return 2
+    fi
+
+    RESAULT=$(curl "http://127.0.0.1:80/route/v1/$MODE/$POINTA;$POINTB" 2>/dev/null | jq -r '.routes[].legs[]|"duration: " + (.duration|tostring), "distance: "+ (.distance|tostring)' )
+    if [ -z "$RESAULT" ];then
+        echo getting data failed.
         return 1
     fi
     echo "$MODE"
-    curl "http://127.0.0.1:80/route/v1/$MODE/$POINTA;$POINTB" 2>/dev/null | jq -r '.routes[].legs[]|"duration: " + (.duration|tostring), "distance: "+ (.distance|tostring)'
-    echo "-----------------------"
+    echo "$RESAULT"
 
 }
 
@@ -203,12 +198,10 @@ function start {
     #RETURN CODES: command, failed"1"  
 
     #start containers
-    execute echo "starting containers"
     get_status >/dev/null
     local RETURN_CODE=$?
     if [ $RETURN_CODE -eq 1 ] ;then
-        execute docker compose start
-        execute echo "-----------------------"
+        docker compose start
         return $?
     elif [ $RETURN_CODE -eq 0 ];then
         echo "containers already running"
@@ -217,7 +210,6 @@ function start {
     else
         echo "problem on starting containers"
     fi
-    execute echo "-----------------------"
     return 1
 }
 
@@ -229,21 +221,18 @@ function stop {
     #RETURN CODES: command, failed"1"  
 
     #stop containers
-    execute echo "stopping containers"
     get_status >/dev/null
     local RETURN_CODE=$?
     if [ $RETURN_CODE -eq 1 ] ;then
-        execute echo "containers not running"
+        echo "containers not running"
     elif [ $RETURN_CODE -eq 0 ];then
-        execute docker compose stop
-        execute echo "-----------------------"
+        docker compose stop
         return $?
     elif  [ $RETURN_CODE -eq 2 ];then
-        execute echo "no container found. run setup first"
+        echo "no container found. run setup first"
     else
-        execute echo "problem on starting containers"
+        echo "problem on starting containers"
     fi
-    execute echo "-----------------------"
     return 1
 
 }
@@ -301,27 +290,27 @@ done
 case "$1" in
     setup)
         #setup project 
-        setup "${MAP}"
+        execute setup "${MAP}"
         ;;
 
     download)
         #download MAP file
-        download_assets "${URL}"
+        execute download_assets "${URL}"
         ;;
 
     list)
         #list all map files
-        list_maps
+        execute list_maps
         ;;
 
     status)
         #get status of containers
-        get_status
+        execute get_status
         ;;
 
     destroy)
         #stop and delete all containers
-        destroy_containers 
+        execute destroy_containers 
         ;;
 
     get)
@@ -330,17 +319,17 @@ case "$1" in
             help
             exit 1
         fi
-        get_data "$POINTA" "$POINTB" "driving"
-        get_data "$POINTA" "$POINTB" "walking"
-        get_data "$POINTA" "$POINTB" "cycling"
+        execute get_data "$POINTA" "$POINTB" "driving"
+        execute get_data "$POINTA" "$POINTB" "walking"
+        execute get_data "$POINTA" "$POINTB" "cycling"
         ;;
     
     start)
-        start
+        execute start
         ;;
 
     stop)
-        stop
+        execute stop
         ;;
 
     help)
