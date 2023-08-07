@@ -28,7 +28,7 @@ for getting duration(secon) and distance(metre) between two points run
 ```bash
   ./run.sh get -s 51.42838,35.80697 -d 51.42088,35.68590
 ```
-option "-s" is first point and "-d" means second point with format "<Longitude>,<Latitude>"
+option "-s" is first point and "-d" means second point with format "\<Longitude\>,\<Latitude\>"
 
 
 ## Usage
