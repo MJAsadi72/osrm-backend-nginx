@@ -10,7 +10,12 @@ function execute {
     #RETURN CODES: command
 
     #execute command and pipe it to tee to store at output.txt
-    $@ 2>&1| tee -a output.txt
+    if [ "$1" == "echo" ]; then
+        $@ 2>&1| tee -a output.txt
+    else
+        echo "Executing: $@" >> output.txt
+        $@ 2>&1| tee -a output.txt
+    fi
 }
 
 function destroy_containers {
