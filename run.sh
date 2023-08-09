@@ -78,11 +78,12 @@ function setup {
   
     #Exit immediately if one of commands failed for triggering trap
     set -e
-    trap "set +e ;destroy_containers; trap - INT TERM EXIT ; return 1" INT TERM EXIT
+    trap "set +e ;destroy_containers; return 1" INT TERM EXIT
 
     #check if MAP file exists
     if  find assets/*.osm.pbf | grep -x assets/"$MAP".osm.pbf ; then
-        docker compose build --build-arg MAP="${MAP}" && docker compose up -d 
+        docker compose build --build-arg MAP="${MAP}" 
+        docker compose up -d 
     else
         echo "MAP file not found. Abort setup." 
     fi
