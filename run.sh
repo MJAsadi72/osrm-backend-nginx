@@ -13,9 +13,11 @@ function execute {
 
     echo "Executing: $@" >> output.txt
     $@ 2>&1| tee -a output.txt
-    echo -e "\nRETURN_CODE=${PIPESTATUS[0]}" | tee -a output.txt
+    RETURN_CODE=${PIPESTATUS[0]}
+    echo -e "\nRETURN_CODE=${RETURN_CODE}" | tee -a output.txt
     echo -e "-----------------------\n" | tee -a output.txt
-
+    return $RETURN_CODE
+    
 }
 
 function destroy_containers {
